@@ -1,4 +1,4 @@
-from osv import osv, fields
+from openerp import osv, fields
 from openerp.tools.translate import _
 from time import mktime
 from datetime import datetime

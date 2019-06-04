@@ -1,27 +1,21 @@
-from osv import osv,fields
+from openerp import models,api,fields
 from datetime import datetime
 from time import mktime
 import time
 from dateutil.relativedelta import relativedelta
 
-class mro_order(osv.osv):
+class mro_order(models.Model):
     _inherit    = "mro.order"
-    _columns    = {
-                   'recurring_id'       : fields.many2one('mro.recurring','Reference'),
-                   'responsible_id'     : fields.many2one('hr.employee','Responsible'),
-                   'sop_ids'            : fields.many2many('document.page','order_sop_rel','order_id','sop_id','SOP'),
-                   }
-mro_order()
-
-class mro_task(osv.osv):
+    recurring_id = fields.Many2one('mro.recurring','Reference')
+    responsible_id = fields.Many2one('hr.employee','Responsible')
+    sop_ids = fields.Many2many('document.page','order_sop_rel','order_id','sop_id','SOP')
+    
+class mro_task(models.Model):
     _inherit    = "mro.task"
-    _columns    = {
-                   'sop_ids'            : fields.many2many('document.page','task_sop_rel','task_id','sop_id','SOP'),
-                   'mo_id'              : fields.many2one('mro.order','Related Maintenance Order',ondelete="cascade"),
-                   }
-mro_task()
+    sop_ids = fields.Many2many('document.page','task_sop_rel','task_id','sop_id','SOP')
+    mo_id = fields.Many2one('mro.order','Related Maintenance Order',ondelete="cascade")
 
-class mro_recurring(osv.osv):
+class mro_recurring(models.Model):
     _name       = "mro.recurring"
     _description= "Maintenance Recuring"
 
@@ -39,23 +33,21 @@ class mro_recurring(osv.osv):
         ('pm','Preventive')
     ]
     
-    _columns    = {
-                   'name'               : fields.char('Description',size=200,required=True),
-                   'asset_id'           : fields.many2one('asset.asset','Equipment',required=True),
-                   'frequency'          : fields.selection([('daily','Daily'),
+    name = fields.Char('Description',size=200,required=True)
+    asset_id = fields.Many2one('asset.asset','Equipment',required=True)
+    frequency = fields.Selection([('daily','Daily'),
                                                             ('weekly','Weekly'),
                                                             ('monthly','Monthly'),
                                                             ('quarterly','Quarterly'),
-                                                            ('yearly','Yearly')],'Frequency'),
-                   'sop_ids'            : fields.many2many('document.page','recurring_sop_rel','recurring_id','sop_id','SOP'),
-                   'mro_order_ids'      : fields.one2many('mro.order','recurring_id','Maintenance Order'),
-                   'responsible_id'     : fields.many2one('hr.employee','Responsible'),
-                   'location_id'        : fields.many2one('stock.location','Parts Location'),
-                   'maintenance_type'   : fields.selection(MAINTENANCE_TYPE_SELECTION, 'Maintenance Type', required=True),
-                   'first_schedule'     : fields.datetime('First Schedule',help='Define when does your sets of maintenance will be started'),
-                   'recurring_amount'   : fields.integer('Amount Recurring'),
-                   'recurring_period'   : fields.selection(MAINTENANCE_PERIOD, 'Period Recurring',required=True),
-                   }
+                                                            ('yearly','Yearly')],'Frequency')
+    sop_ids = fields.Many2many('document.page','recurring_sop_rel','recurring_id','sop_id','SOP')
+    mro_order_ids = fields.One2many('mro.order','recurring_id','Maintenance Order')
+    responsible_id = fields.Many2one('hr.employee','Responsible')
+    location_id = fields.Many2one('stock.location','Parts Location')
+    maintenance_type = fields.Selection(MAINTENANCE_TYPE_SELECTION, 'Maintenance Type', required=True)
+    first_schedule = fields.Datetime('First Schedule',help='Define when does your sets of maintenance will be started')
+    recurring_amount = fields.Integer('Amount Recurring')
+    recurring_period = fields.Selection(MAINTENANCE_PERIOD, 'Period Recurring',required=True)
     
     def create_maintenance_sequence(self,cr,uid,ids,context=None):
         for data in self.browse(cr,uid,ids,context=None):
@@ -160,4 +152,3 @@ class mro_recurring(osv.osv):
                     foo = foo2+relativedelta(years=1)
                 foo = foo.strftime('%Y-%m-%d %H:%M:%S')
         return True
-mro_recurring()

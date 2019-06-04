@@ -25,24 +25,22 @@ class res_partner(models.Model):
         res = self.pool.get('res.company').read(cr,uid,user.company_id.id,settings)
         del res['id']
         return res
-    def _get_state(self, cr, uid, ids, name, args, context=None):
-        settings=self.get_settings(cr,uid,ids)
-        res = {}
-        for partner in self.browse(cr, uid, ids):
-            if partner.initial_audit and partner.followup_audit and partner.coa_verification:
-                self.write(cr,uid,ids,{'been_certified':True})
-                res[partner.id] = 'c'
+    @api.one
+    def _get_state(self):
+        self.qlf_status
+        if self.initial_audit and self.followup_audit and self.coa_verification:
+            self.been_certified = True
+            self.qlf_status = 'c'
+        else:
+            if self.been_certified:
+                self.qlf_status = 'd'
             else:
-                if partner.been_certified:
-                    res[partner.id] = 'd'
+                if self.number_verified_coa!=0 or self.initial_audit:
+                    self.qlf_status =  'i'
                 else:
-                    if partner.number_verified_coa!=0 or partner.initial_audit:
-                        res[partner.id] = 'i'
-                    else:
-                        res[partner.id] = 'n'
-            if not partner.initial_audit and not partner.followup_audit and not partner.coa_verification and partner.number_verified_coa==0:
-                res[partner.id] = 'n'
-        return res
+                    self.qlf_status =  'n'
+            if not self.initial_audit and not self.followup_audit and not self.coa_verification and self.number_verified_coa==0:
+                self.qlf_status = 'n'
     
     #===========================================================================
     # GET PARTNER ID THAT NEED TO BE UPDATED, TRIGGER BY....
@@ -66,20 +64,17 @@ class res_partner(models.Model):
     #===========================================================================
     # SET WHETHER INITIAL AUDIT IS CHECKED OR NOT
     #===========================================================================
-    def set_initial_audit(self, cr, uid, ids, name, args, context=None):
+    @api.one
+    def set_initial_audit(self):
         res={}
         user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
-        if user.company_id.initial_audit_required:
-            for v in self.browse(cr,uid,ids):
-                audit_ids = self.pool.get('mgmtsystem.audit').search(cr,uid,[('res_partner_id','=',v.id),('state','=','pass')])
-                if audit_ids:
-                    res[v.id]=True
-                else:
-                    res[v.id]=False
+        if self.env.user.company_id.initial_audit_required:
+            audit_ids = self.audit_ids.filtered(lambda a: a.state == 'pass')
+            self.initial_audit = True if audit_ids else False
         else:
-            for v in self.browse(cr,uid,ids):
-                res[v.id]=True
-        return res
+            self.initial_audit = True
+
+
     
     #===========================================================================
     # SET WHETHER FOLLOW-UP AUDIT IS CHECKED OR NOT
@@ -159,48 +154,26 @@ class res_partner(models.Model):
             res[v.id]=len(audit_ids)
         return res
 
-    _columns        = {
-                       'gmp_vendor'                 : fields.boolean('GMP Vendor',help='By checking this box, system will automatically generate initial audit for this vendor.'),
-                       'coa_ids'                    : fields.one2many('gmp.coa','partner_id','COA'),
-                       'audit_ids'                  : fields.one2many('mgmtsystem.audit','res_partner_id','Audit'),
-                       'been_certified'             : fields.boolean('Been Certified'),
+    gmp_vendor = fields.Boolean('GMP Vendor',help='By checking this box, system will automatically generate initial audit for this vendor.')
+    coa_ids = fields.One2many('gmp.coa','partner_id','COA')
+    audit_ids = fields.One2many('mgmtsystem.audit','res_partner_id','Audit')
+    been_certified = fields.Boolean('Been Certified')
                        
-                       'initial_audit_required'     : fields.related('company_id','initial_audit_required',type='boolean',string='Initial audit required?',store=True),
-                       'followup_audit_required'    : fields.related('company_id','followup_audit_required',type='boolean',string='Follow up audits required?',store=True),
-                       'coa_verification_required'  : fields.related('company_id','coa_verification',type='boolean',string='COA verification',store=True),
-                       'number_of_coa'              : fields.related('company_id','number_of_coa',type='boolean',string='Number of COA Verification Tests',store=True),
-                       'followup_audit_freq'        : fields.related('company_id','followup_audit_freq',type='boolean',string='Number of COA Verification Tests',store=True),
-                       
-                       'qlf_status'                 : fields.function(_get_state, type='selection', selection=qlf_status, 
-                                                                        string='Status',help='''This field is not editable.
+    initial_audit_required = fields.Related('company_id','initial_audit_required',type='boolean',string='Initial audit required?',store=True),
+    followup_audit_required = fields.Related('company_id','followup_audit_required',type='boolean',string='Follow up audits required?',store=True),
+    coa_verification_required = fields.Related('company_id','coa_verification',type='boolean',string='COA verification',store=True),
+    number_of_coa = fields.Related('company_id','number_of_coa',type='boolean',string='Number of COA Verification Tests',store=True),
+    followup_audit_freq = fields.Related('company_id','followup_audit_freq',type='boolean',string='Number of COA Verification Tests',store=True),
+                    
+    qlf_status = fields.Selection(compute='_get_state', selection=qlf_status, string='Status',help='''This field is not editable.
                                                                         Vendor qualification status will change automatically 
-                                                                        based to GMP settings and based on any records in system'''),
-                       'initial_audit'              : fields.function(set_initial_audit,type='boolean',string='Initial Audit',
-                                                      store={
-                                                             'res.company': (get_partner_trigger_by_company,['initial_audit_required'],None, 10),
-                                                             'mgmtsystem.audit': (get_partner_trigger_by_audit,None, 10),
-                                                             }
-                                                      ),
-                       'followup_audit'             : fields.function(set_followup_audit,type='boolean',string='Follow-up Audit',
-                                                      store={
-                                                             'res.company': (get_partner_trigger_by_company,['followup_audit_required','system_date','followup_audit_freq'],None, 10),
-                                                             'mgmtsystem.audit': (get_partner_trigger_by_audit,None, 10),
-                                                             }
-                                                      ),
-                       'coa_verification'           : fields.function(set_coa_verification,type='boolean',string='COA Verification',
-                                                      store={
-                                                             'res.company': (get_partner_trigger_by_company,['coa_verification'],None, 10),
-                                                             'gmp.coa': (get_partner_trigger_by_coa,None, 10),
-                                                             }
-                                                      ),
-                       'number_verified_coa'        : fields.function(set_number_verified_coa,type='integer',string='Number of Verified COAs',
-                                                      store={
-                                                             'res.company': (get_partner_trigger_by_company,['number_of_coa'],None, 10),
-                                                             'gmp.coa': (get_partner_trigger_by_coa,None, 10),
-                                                             }
-                                                      ),
-                       }
-    def write(self,cr,uid,ids,vals,context=None):
+                                                                        based to GMP settings and based on any records in system''')
+    initial_audit = fields.Boolean(computed="set_initial_audit",string='Initial Audit',store=True)
+    followup_audit = fields.Boolean(computed="set_followup_audit",string='Follow-up Audit',store=True)
+    coa_verification = fields.Boolean(computed="set_coa_verification",string='COA Verification',store=True)
+    number_verified_coa = fields.Integer(computed="set_number_verified_coa",string='Number of Verified COAs',store=True)
+
+    def Xwrite(self,cr,uid,ids,vals,context=None):
         user = self.pool.get('res.users').browse(cr,uid,uid)			
 	
         for partner in self.browse(cr,uid,ids):			
@@ -224,7 +197,7 @@ class res_partner(models.Model):
                     #print "After Create called this is the print..============================================="                     
         return super(res_partner,self).write(cr,uid,ids,vals,context)
     
-    def create(self,cr,uid,vals,context=None):
+    def Xcreate(self,cr,uid,vals,context=None):
         user = self.pool.get('res.users').browse(cr,uid,uid)
         if 'gmp_vendor' in vals.keys() and vals['gmp_vendor']:
             sop_ids = []
@@ -235,4 +208,3 @@ class res_partner(models.Model):
                      'date':time.strftime('%Y-%m-%d %H:%M:%S')}
             vals['audit_ids']= [(0,0,audit)]
         return super(res_partner,self).create(cr,uid,vals,context)
-res_partner()

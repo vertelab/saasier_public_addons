@@ -1,4 +1,4 @@
-from osv import osv, fields
+from openerp import models, api, fields
 from openerp.tools.translate import _
 import time
 from time import mktime
@@ -16,8 +16,9 @@ settings = ['initial_audit_required',
             'sop_ids',
             'followup_audit_freq']
 
-class res_partner(osv.Model):
+class res_partner(models.Model):
     _inherit        = "res.partner"
+    
     
     def get_settings(self,cr,uid,ids,context=None):
         user = self.pool.get('res.users').browse(cr, uid, uid, context=context)

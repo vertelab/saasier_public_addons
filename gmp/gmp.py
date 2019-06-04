@@ -182,8 +182,8 @@ class mgmtsystem_audit(models.Model):
 
 class gmp_product_specs(models.Model):
     _name = "gmp.product_specs"
-    name = fields.Char('Parameter', size=64),
-    specs_id = fields.Many2one('gmp.product_specs','Specs'),
+    name = fields.Char('Parameter', size=64)
+    specs_id = fields.Many2one('gmp.product_specs','Specs')
     indicator = fields.Selection([('=','='),
                                                 ('!=','<>'),
                                                 ('<','<'),

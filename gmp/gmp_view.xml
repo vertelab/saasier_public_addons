@@ -248,8 +248,8 @@
 							</group>
 							<group colspan="1" col="1">
 								<h4>3rd Party COA</h4>
-								<field name="3rd_coa" filename="3rd_coa_nm" nolabel="1" />
-								<field name="3rd_coa_nm" nolabel="1" />
+								<field name="t3rd_coa" filename="3rd_coa_nm" nolabel="1" />
+								<field name="t3rd_coa_nm" nolabel="1" />
 							</group>
 						</group>
 						<notebook colspan="4">

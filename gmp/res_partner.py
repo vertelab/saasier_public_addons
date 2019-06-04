@@ -159,11 +159,11 @@ class res_partner(models.Model):
     audit_ids = fields.One2many('mgmtsystem.audit','res_partner_id','Audit')
     been_certified = fields.Boolean('Been Certified')
                        
-    initial_audit_required = fields.Related('company_id','initial_audit_required',type='boolean',string='Initial audit required?',store=True),
-    followup_audit_required = fields.Related('company_id','followup_audit_required',type='boolean',string='Follow up audits required?',store=True),
-    coa_verification_required = fields.Related('company_id','coa_verification',type='boolean',string='COA verification',store=True),
-    number_of_coa = fields.Related('company_id','number_of_coa',type='boolean',string='Number of COA Verification Tests',store=True),
-    followup_audit_freq = fields.Related('company_id','followup_audit_freq',type='boolean',string='Number of COA Verification Tests',store=True),
+    initial_audit_required = fields.Boolean(related='company_id.initial_audit_required',string='Initial audit required?',store=True)
+    followup_audit_required = fields.Boolean(related='company_id.followup_audit_required',string='Follow up audits required?',store=True)
+    coa_verification_required = fields.Boolean(related='company_id.coa_verification',string='COA verification',store=True)
+    number_of_coa = fields.Integer(related='company_id.number_of_coa',string='Number of COA Verification Tests',store=True)
+    followup_audit_freq = fields.Selection(related='company_id.followup_audit_freq',string='Number of COA Verification Tests',store=True)
                     
     qlf_status = fields.Selection(compute='_get_state', selection=qlf_status, string='Status',help='''This field is not editable.
                                                                         Vendor qualification status will change automatically 

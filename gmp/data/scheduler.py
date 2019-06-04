@@ -1,7 +1,7 @@
-from osv import osv,fields
+from openerp import models,api,fields
 import time
 
-class res_company(osv.osv):
+class res_company(models.Model):
     _inherit        = "res.company"
     def run_system_date(self,cr,uid,context=None):
         print "SCHEDULER ACTIVE"
@@ -9,4 +9,3 @@ class res_company(osv.osv):
             print "SCHEDULER SUCCESS"
             self.pool.get('res.company').write(cr,uid,cid,{'system_date':time.strftime('%Y-%m-%d')})
         return True
-res_company

@@ -19,12 +19,16 @@ settings = ['initial_audit_required',
 class res_partner(models.Model):
     _inherit        = "res.partner"
     
-    
-    def get_settings(self,cr,uid,ids,context=None):
-        user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
-        res = self.pool.get('res.company').read(cr,uid,user.company_id.id,settings)
+    @api.multi
+    # ~ def get_settings(self,cr,uid,ids,context=None):
+    def get_settings(self):
+        # ~ user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
+        user = self.env.user
+        # ~ res = self.pool.get('res.company').read(cr,uid,user.company_id.id,settings)
+        res = self.env.user.company_id.read(settings)
         del res['id']
         return res
+        
     @api.one
     def _get_state(self):
         self.qlf_status
@@ -45,18 +49,26 @@ class res_partner(models.Model):
     #===========================================================================
     # GET PARTNER ID THAT NEED TO BE UPDATED, TRIGGER BY....
     #===========================================================================
-    def get_partner_trigger_by_company(self, cr, uid, ids, context=None):
-        res = self.pool.get('res.partner').search(cr,uid,[('supplier','=',True),('gmp_vendor','=',True)])
+    @api.multi
+    # ~ def get_partner_trigger_by_company(self, cr, uid, ids, context=None):
+    def get_partner_trigger_by_company(self):
+        # ~ res = self.pool.get('res.partner').search(cr,uid,[('supplier','=',True),('gmp_vendor','=',True)])
+        res = self.env['res.partner'].search(cr,uid,[('supplier','=',True),('gmp_vendor','=',True)])
         return res
-    def get_partner_trigger_by_audit(self, cr, uid, ids, context=None):
+    @api.multi
+    def get_partner_trigger_by_audit(self):
         res=[]
-        audits = self.pool.get('mgmtsystem.audit').browse(cr,uid,ids)
+        # ~ audits = self.pool.get('mgmtsystem.audit').browse(cr,uid,ids)
+        audits = self.env['mgmtsystem.audit'].browse(cr,uid,ids)
         for audit in audits:
             res.append(audit.res_partner_id.id)
         return res
-    def get_partner_trigger_by_coa(self, cr, uid, ids, context=None):
+    @api.multi
+    # ~ def get_partner_trigger_by_coa(self, cr, uid, ids, context=None):
+    def get_partner_trigger_by_coa(self):
         res=[]
-        coas = self.pool.get('gmp.coa').browse(cr,uid,ids)
+        # ~ coas = self.pool.get('gmp.coa').browse(cr,uid,ids)
+        coas = self.env['gmp.coa'].browse(cr,uid,ids)
         for coa in coas:
             res.append(coa.partner_id.id)
         return res
@@ -67,26 +79,29 @@ class res_partner(models.Model):
     @api.one
     def set_initial_audit(self):
         res={}
-        user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
+        # ~ user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
         if self.env.user.company_id.initial_audit_required:
             audit_ids = self.audit_ids.filtered(lambda a: a.state == 'pass')
             self.initial_audit = True if audit_ids else False
         else:
             self.initial_audit = True
-
-
     
     #===========================================================================
     # SET WHETHER FOLLOW-UP AUDIT IS CHECKED OR NOT
     #===========================================================================
+    @api.multi
+    # ~ def set_followup_audit(self, cr, uid, ids, name, args, context=None):
     def set_followup_audit(self, cr, uid, ids, name, args, context=None):
         res={}
-        user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
+        user = self.env.user
         if user.company_id.followup_audit_required:
-            for v in self.browse(cr,uid,ids):
-                audit_ids = self.pool.get('mgmtsystem.audit').search(cr,uid,[('res_partner_id','=',v.id),('state','=','pass')],order='date desc')
+            # ~ for v in self.browse(cr,uid,ids):
+            for v in self:
+                # ~ audit_ids = self.pool.get('mgmtsystem.audit').search(cr,uid,[('res_partner_id','=',v.id),('state','=','pass')],order='date desc')
+                audit_ids = self.env['mgmtsystem.audit'].search(cr,uid,[('res_partner_id','=',v.id),('state','=','pass')],order='date desc')
                 if audit_ids:
-                    audit=self.pool.get('mgmtsystem.audit').browse(cr,uid,audit_ids[0])
+                    # ~ audit=self.pool.get('mgmtsystem.audit').browse(cr,uid,audit_ids[0])
+                    audit=self.env['mgmtsystem.audit'].browse(cr,uid,audit_ids[0])
                     now=time.strftime('%Y-%m-%d')
                     
                     audit_date = audit.date
@@ -106,51 +121,58 @@ class res_partner(models.Model):
                     next_audit_date_str = next_audit_date.strftime('%Y-%m-%d')
                     
                     if now <= next_audit_date_str:
-                        res[v.id]=True
+                        v.id=True
                     else:
-                        res[v.id]=False
+                        v.id=False
                 else:
-                    res[v.id]=False
+                    v.id=False
         else:
             for v in self.browse(cr,uid,ids):
-                res[v.id]=True
-        return res
+                v.id=True
     
     #===========================================================================
     # SET WHETHER COA VERIFICATION IS CHECKED OR NOT
     #===========================================================================
-    def set_coa_verification(self, cr, uid, ids, name, args, context=None):
-        res={}
-        user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
+    @api.multi
+    # ~ def set_coa_verification(self, cr, uid, ids, name, args, context=None):
+    def set_coa_verification(self):
+        # ~ user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
+        user = self.env.user
         if user.company_id.coa_verification:
-            for v in self.browse(cr,uid,ids):
-                coa_ids = self.pool.get('gmp.coa').search(cr,uid,[('partner_id','=',v.id),('state','=','approved')])
+            # ~ for v in self.browse(cr,uid,ids):
+            for v in self:
+                # ~ coa_ids = self.pool.get('gmp.coa').search(cr,uid,[('partner_id','=',v.id),('state','=','approved')])
+                coa_ids = self.env['gmp.coa'].search([('partner_id','=',v.id),('state','=','approved')])
                 if len(coa_ids)>=user.company_id.number_of_coa:
-                    res[v.id]=True
+                    v.id=True
                 else:
-                    res[v.id]=False
+                    v.id=False
         else:
-            for v in self.browse(cr,uid,ids):
-                res[v.id]=True
-        return res
+            for v in self.browse(self):
+                v.id=True
     
     #===========================================================================
     # SET NUMBER OF VERIFIED COA
     #===========================================================================
-    def set_number_verified_coa(self, cr, uid, ids, name, args, context=None):
-        res={}
-        for v in self.browse(cr,uid,ids):
-            coa_ids = self.pool.get('gmp.coa').search(cr,uid,[('partner_id','=',v.id),('state','=','approved')])
-            res[v.id]=len(coa_ids)
-        return res
+    @api.multi
+    # ~ def set_number_verified_coa(self, cr, uid, ids, name, args):
+    def set_number_verified_coa(self):
+        # ~ for v in self.browse(cr,uid,ids):
+        for v in self.browse(self):
+            coa_ids = self.env['gmp.coa'].search([('partner_id','=',v.id),('state','=','approved')])
+            v.id=len(coa_ids)
     
     #===========================================================================
     # SET NUMBER OF PASSED AUDIT
     #===========================================================================
-    def set_number_passed_audit(self, cr, uid, ids, name, args, context=None):
+    @api.multi
+    # ~ def set_number_passed_audit(self, cr, uid, ids, name, args, context=None):
+    def set_number_passed_audit(self):
         res={}
-        for v in self.browse(cr,uid,ids):
-            audit_ids = self.pool.get('mgmtsystem.audit').search(cr,uid,[('partner_id','=',v.id),('state','=','pass')])
+        # ~ for v in self.browse(cr,uid,ids):
+        for v in self.browse(self):
+            # ~ audit_ids = self.pool.get('mgmtsystem.audit').search(cr,uid,[('partner_id','=',v.id),('state','=','pass')])
+            audit_ids = self.env['mgmtsystem.audit'].search(cr, uid, [('partner_id','=',v.id),('state','=','pass')])
             res[v.id]=len(audit_ids)
         return res
 
